@@ -1,7 +1,7 @@
 #include "mpiwrapper.h"
 
 #ifdef __use_mpi
-#include<mpi.h>
+#include <mpi.h>
 #endif
 
 int mp_init( int *argc, char ***argv) {
