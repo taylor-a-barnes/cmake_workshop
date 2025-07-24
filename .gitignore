@@ -36,7 +36,9 @@
 .interface.ps1
 .interface.sh
 bash.bat
+.bash.bat
 
 # CMake build directories
 /obj
 /build
+*/build
