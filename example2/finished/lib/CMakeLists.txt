@@ -1,129 +1,94 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.14) 
 
-set(MPIWrapper_USE_MPI "" CACHE STRING "Flag to use MPI (ON or OFF)")
+set(MPIWrapper_USE_MPI "DEFAULT" CACHE STRING
+  "String to indicate whether to use MPI (ON, OFF, or DEFAULT)")
 
-# Project name and version
 project(MPIWrapper VERSION 1.0.0
   DESCRIPTION "Wrapper for MPI libraries"
   LANGUAGES CXX)
 
-# Add the library as a target
+# Add the library
 add_library(MPIWrapper)
 
-# Create an alias for MPIWrapper, so that it can be referenced as MPIWrapper::MPIWrapper
-# This is helpful to users, as it helps avoid potential namespace conflicts, and it makes it clear that MPIWrapper::MPIWrapper is a library
+# Create an alias for the library
 add_library(MPIWrapper::MPIWrapper ALIAS MPIWrapper)
-
-# Specify the C++ standard
-target_compile_features(MPIWrapper PUBLIC cxx_std_11)
 
 # Add the library's source files
 target_sources(MPIWrapper
   PRIVATE src/mpiwrapper.cpp)
 
-set_target_properties(
-  MPIWrapper
-  PROPERTIES VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR}
-  #                   CXX_VISIBILITY_PRESET "hidden"
-  #                   VISIBILITY_INLINES_HIDDEN TRUE
-)
+# Specify the C++ standard
+target_compile_features(MPIWrapper PUBLIC cxx_std_11)
 
-# Set the include directories for the library
-# Generally, headers in src should only be visible within the library
-# Headers meant to be visible to users should be in /include
+set_target_properties(MPIWrapper
+  PROPERTIES VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR})
+
+# Set the include directories
 target_include_directories(
   MPIWrapper
   PRIVATE src
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-
-# Generate an export header, and add it to the include directories
-#include(GenerateExportHeader)
-#generate_export_header(
-#	MPIWrapper
-#	EXPORT_FILE_NAME export/MPIWrapper/export_mpiwrapper.hpp
-#)
-#target_include_directories(
-#	MPIWrapper
-#	PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export>
-#	       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE}>
-#)
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 # Find MPI
 if ( MPIWrapper_USE_MPI STREQUAL "ON" )
   find_package(MPI REQUIRED)
 elseif( MPIWrapper_USE_MPI STREQUAL "OFF" )
-else()
+elseif( MPIWrapper_USE_MPI STREQUAL "DEFAULT" )
   find_package(MPI)
+else()
+  message(FATAL_ERROR "Unrecognized value of MPIWrapper_USE_MPI")
 endif()
-if( MPI_FOUND )
-  set( MPIWrapper_USE_MPI ON )
-  target_link_libraries(MPIWrapper PRIVATE MPI::MPI_CXX
-  )
+if ( MPI_FOUND )
+  target_link_libraries(MPIWrapper PRIVATE MPI::MPI_CXX)
   target_compile_definitions(MPIWrapper PRIVATE __use_mpi=1)
 else()
-  set( MPIWrapper_USE_MPI OFF )
   message(WARNING "MPI was not found. Disabling MPI support.")
 endif()
 
-if (BUILD_SHARED_LIBS)
+
+if ( BUILD_SHARED_LIBS )
   set(MPIWrapper_STATIC_BUILD OFF)
 else()
   set(MPIWrapper_STATIC_BUILD ON)
 endif()
-#message(WARNING "VALUE OF STATIC: ${MPIWrapper_STATIC_BUILD}")
 
 
-##########################################################################
-########################## BEGIN INSTALL SECTION #########################
-##########################################################################
-
-# Include the GNUInstallDirs module to get the canonical install paths defined
+######################################################
+# BEGIN INSTALL SECTION
+######################################################
 include(GNUInstallDirs)
 
 # Set install locations
-install(
-  TARGETS MPIWrapper
-  EXPORT MPIWrapperTargets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+install(TARGETS MPIWrapper
+        EXPORT MPIWrapperTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-# Explicitly install the header files
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#install(
-#	FILES "${CMAKE_CURRENT_BINARY_DIR}/export/MPIWrapper/export_mpiwrapper.hpp"
-#	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/MPIWrapper
-#)
 
+# Create the CMake configuration files
 include(CMakePackageConfigHelpers)
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/MPIWrapperConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfig.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper)
+
 write_basic_package_version_file(
   "MPIWrapperConfigVersion.cmake"
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion)
 
-# message(WARNING "DATAROOT: ${CMAKE_INSTALL_DATAROOTDIR}"
-configure_package_config_file(
-  "${CMAKE_CURRENT_LIST_DIR}/cmake/MPIWrapperConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfig.cmake"
-  INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper
-)
-
 install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfigVersion.cmake
-  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper
-)
+        ${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper)
+
 install(
   EXPORT MPIWrapperTargets
   FILE MPIWrapperTargets.cmake
   NAMESPACE MPIWrapper::
-  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper
-)
-
-
-
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper)

@@ -275,5 +275,83 @@ find_dependency(MPI)
 ```
 
 Now compile and install the library, then attempt to compile the executable.
-You should find that it compiles and runs.
+You should see that the executable links against MPI, and find that it compiles and runs.
+
+
+# Privacy and Shared Libraries
+
+Exit out the the container session, the recompile the library as a shared library:
+
+```
+rm -rf build
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DBUILD_SHARED_LIBS=ON
+cmake --build build
+cmake --install install
+```
+
+Recompile the executable with the `--verbose` flag, and you will see that it includes the `-D__use_mpi=1` flag from our library:
+
+```
+[ 50%] Building CXX object CMakeFiles/simplempi.dir/src/main.cpp.o                                                      /usr/bin/c++ -D__use_mpi=1 -isystem /usr/include/x86_64-linux-gnu/mpich -flto=auto -ffat-lto-objects -MD -MT CMakeFiles/simplempi.dir/src/main.cpp.o -MF CMakeFiles/simplempi.dir/src/main.cpp.o.d -o CMakeFiles/simplempi.dir/src/main.cpp.o -c /work/example2/exe/src/main.cpp 
+```
+
+This is not how things should work.
+The reason it is happening this way is because we used `PUBLIC` in the following lines in the library's `CMakeLists.txt`:
+
+```
+if ( MPI_FOUND )
+  target_link_libraries(MPIWrapper PUBLIC MPI::MPI_CXX)
+  target_compile_definitions(MPIWrapper PUBLIC __use_mpi=1)
+else()
+```
+
+Change both instances of `PUBLIC` to `PRIVATE`, and recompile and install the library as a shared library.
+Recompile the executable with `--verbose`, and you should see that these extra options are no longer present:
+
+```
+[ 50%] Building CXX object CMakeFiles/simplempi.dir/src/main.cpp.o                                                                                          /usr/bin/c++    -MD -MT CMakeFiles/simplempi.dir/src/main.cpp.o -MF CMakeFiles/simplempi.dir/src/main.cpp.o.d -o CMakeFiles/simplempi.dir/src/main.cpp.o -c /work/example2/exe/src/main.cpp
+```
+
+Our executable is no long linking against the MPI library when our wrapper is compiled as a shared library.
+This is good.
+Notice, though, that we are still searching for MPI during the configure step:
+
+```
+-- Found MPI_C: /usr/lib/x86_64-linux-gnu/libmpich.so (found version "4.0")
+-- Found MPI_CXX: /usr/lib/x86_64-linux-gnu/libmpichcxx.so (found version "4.0")
+-- Found MPI: TRUE (found version "4.0")
+```
+
+
+Add the following before the install section of the library's `CMakeLists.txt`:
+
+```
+if ( BUILD_SHARED_LIBS )
+  set(MPIWrapper_STATIC_BUILD OFF)
+else()
+  set(MPIWrapper_STATIC_BUILD ON)
+endif()
+```
+
+Then in `MPIWrapperConfig.cmake.in`, change:
+
+```
+find_dependency(MPI)
+```
+
+to:
+
+```
+if ( @MPIWrapper_STATIC_BUILD@ )
+  find_dependency(MPI)
+endif()
+```
+
+Now restart the container, and compile and install the wrapper as a static library.
+Compile the executable with the ``--verbose`` flag.
+You should see that it still works, and that the executable links against the MPI library.
+This is because `PRIVATE` values are still passed to consumers when a target is compiled as a static library; this is the normal and correct behavior.
+
+
+
 
