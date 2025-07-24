@@ -176,8 +176,8 @@ Now create a file `cmake/MPIWrapperConfig.cmake.in`, and add to it:
 ```
 @PACKAGE_INIT@
 
-include(CMakeFindDependencyMacro)
-find_dependency(MPI)
+#include(CMakeFindDependencyMacro)
+#find_dependency(MPI)
 
 check_required_components("@PROJECT_NAME@")
 ```
@@ -188,11 +188,92 @@ cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 cmake --build build
 ```
 
-This creats a new file at `build/MPIWrapperConfig.cmake`.  View it now.
+This creates a new file at `build/MPIWrapperConfig.cmake`.  View it now.
 
 ```
 cmake --install install
 ```
 
+This doesn't actually install `MPIWrapperConfig.cmake`.
+To do this, append to the following to the library's `CMakeList.txt`:
 
+```
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper)
+```
+
+Now build and install:
+```
+rm -rf build
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+cmake --build build
+cmake --install install
+```
+
+This will install `MPIWrapperConfig.cmake`.
+
+Now if we try to recompile the executable, it will complain that it can't find a version that satisfies the `1.0` version requirement we provided.
+To fix this, add the following in the library's `CMakeLists.txt` file, just above the last call to `install` that installs the `WPIWrapperConfig.cmake` file:
+
+```
+write_basic_package_version_file(
+  "MPIWrapperConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
+```
+
+Then add `MPIWrapperConfigVersion.cmake` to the final install command:
+
+```
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/MPIWrapperConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper)
+```
+
+Now build and install the library, then attempt to build the executable.
+You will get:
+
+```
+CMake Error at CMakeLists.txt:7 (add_executable):                                                                                                             Target "simplempi" links to target "MPIWrapper::MPIWrapper" but the target was not found.  Perhaps a find_package() call is missing for an IMPORTED target, or an ALIAS target is missing?
+```
+
+We're now going to need to revisit the `EXPORT MPIWrapperTargets` line we added earlier.
+Append the following to the library's `CMakeLists.txt`:
+
+```
+install(
+  EXPORT MPIWrapperTargets
+  FILE MPIWrapperTargets.cmake
+  NAMESPACE MPIWrapper::
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/MPIWrapper)
+```
+
+Then append the following to the end of `MPIWrapperConfig.cmake.in`:
+
+```
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+```
+
+Now compile and install the library, then attempt to compile the executable.
+You will get:
+
+```
+CMake Error at CMakeLists.txt:7 (add_executable):                                                                         Target "simplempi" links to target "MPI::MPI_CXX" but the target was not
+found.  Perhaps a find_package() call is missing for an IMPORTED target, or
+an ALIAS target is missing?
+```
+
+This is because we have compiled a static library, which means the library was compiled without a link step.
+This means that the consumer must link against any dependencies of the library.
+Append the following to your `MPIWrapperConfig.cmake.in`:
+
+```
+include(CMakeFindDependencyMacro)
+find_dependency(MPI)
+```
+
+Now compile and install the library, then attempt to compile the executable.
+You should find that it compiles and runs.
 
