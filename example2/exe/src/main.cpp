@@ -1,7 +1,7 @@
 #include "mpiwrapper.h"
 #include <iostream>
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
     mp_init(&argc, &argv);
 
     int world_size;

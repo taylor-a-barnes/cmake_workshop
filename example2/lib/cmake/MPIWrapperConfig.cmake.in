@@ -1,7 +1,7 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-if( @MPIWrapper_STATIC_BUILD@ )
+if( @MPIWrapper_STATIC_BUILD@ AND @MPIWrapper_USE_MPI@ )
   find_dependency(MPI)
 endif()
 

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-set(MPIWRAPPER_USE_MPI "" CACHE STRING "Flag to use MPI (ON or OFF)")
+set(MPIWrapper_USE_MPI "" CACHE STRING "Flag to use MPI (ON or OFF)")
 
 # Project name and version
 project(MPIWrapper VERSION 1.0.0
@@ -53,17 +53,19 @@ target_include_directories(
 #)
 
 # Find MPI
-if ( MPIWRAPPER_USE_MPI STREQUAL "ON" )
+if ( MPIWrapper_USE_MPI STREQUAL "ON" )
   find_package(MPI REQUIRED)
-elseif( MPIWRAPPER_USE_MPI STREQUAL "OFF" )
+elseif( MPIWrapper_USE_MPI STREQUAL "OFF" )
 else()
   find_package(MPI)
 endif()
 if( MPI_FOUND )
+  set( MPIWrapper_USE_MPI ON )
   target_link_libraries(MPIWrapper PRIVATE MPI::MPI_CXX
   )
   target_compile_definitions(MPIWrapper PRIVATE __use_mpi=1)
 else()
+  set( MPIWrapper_USE_MPI OFF )
   message(WARNING "MPI was not found. Disabling MPI support.")
 endif()
 
